@@ -11,5 +11,7 @@ namespace DemoIdentityProject.Models.Entity
         public string? Name { get; set; }
 
         public string? Address { get; set; }
+
+        public bool IsUsingTemporaryPassword { get; set; }
     }
 }

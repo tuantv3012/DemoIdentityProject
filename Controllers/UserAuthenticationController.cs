@@ -9,11 +9,13 @@ namespace DemoIdentityProject.Controllers
     {
         private readonly SignInManager<User> _signInManager;
         private readonly ILogger<UserAuthenticationController> _logger;
+        private readonly UserManager<User> _userManager;
 
         public UserAuthenticationController(SignInManager<User> signInManager, ILogger<UserAuthenticationController> logger, UserManager<User> userManager)
         {
             _signInManager = signInManager;
             _logger = logger;
+            _userManager = userManager;
         }
         public IActionResult Login()
         {
@@ -25,13 +27,28 @@ namespace DemoIdentityProject.Controllers
         {
             if (ModelState.IsValid)
             {
-                var result = await _signInManager.PasswordSignInAsync(model.Username!, model.Password!, model.RememberMe, lockoutOnFailure: false);
-                if (result.Succeeded)
+                var user = await _userManager.FindByEmailAsync(model.Username!);
+                if (user != null && await _userManager.CheckPasswordAsync(user, model.Password!))
                 {
-                    _logger.LogInformation("User logged in.");
-                    return RedirectToAction("Index", "Home");
+                    if (user.IsUsingTemporaryPassword)
+                    {
+                        await _signInManager.SignInAsync(user, isPersistent: false);
+                        return RedirectToAction("ChangeTemporaryPassword", "Account");
+                    }
+
+                    var result = await _signInManager.PasswordSignInAsync(model.Username!, model.Password!, model.RememberMe, lockoutOnFailure: false);
+                    if (result.Succeeded)
+                    {
+                        _logger.LogInformation("User logged in.");
+                        return RedirectToAction("Index", "Home");
+                    }
+                    else
+                    {
+                        ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+                        return View(model);
+                    }
                 }
-                ModelState.AddModelError(string.Empty, "Invalid login attempt");
+                ModelState.AddModelError(string.Empty, "Invalid login attempt.");
                 return View(model);
             }
             return View();

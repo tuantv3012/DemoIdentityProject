@@ -41,7 +41,8 @@ namespace DemoIdentityProject.Controllers
                     Name = model.Name,
                     UserName = model.Email,
                     Email = model.Email,
-                    Address = model.Address
+                    Address = model.Address,
+                    IsUsingTemporaryPassword = true
                 };
 
                 var result = await _userManager.CreateAsync(user, randomPassword);

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DemoIdentityProject.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20240529045918_init")]
+    [Migration("20240530080103_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -45,6 +45,9 @@ namespace DemoIdentityProject.Migrations
                         .HasColumnType("nvarchar(256)");
 
                     b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsUsingTemporaryPassword")
                         .HasColumnType("bit");
 
                     b.Property<bool>("LockoutEnabled")
