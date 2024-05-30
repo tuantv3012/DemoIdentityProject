@@ -1,7 +1,15 @@
+using DemoIdentityProject.Context;
+using DemoIdentityProject.Models.Entity;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
+var connectionString = builder.Configuration.GetConnectionString("SqlConnection");
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddDbContext<ApplicationDbContext>(
+    option => option.UseSqlServer(connectionString));
 
 var app = builder.Build();
 
