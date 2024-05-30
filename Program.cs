@@ -10,6 +10,22 @@ var connectionString = builder.Configuration.GetConnectionString("SqlConnection"
 builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<ApplicationDbContext>(
     option => option.UseSqlServer(connectionString));
+builder.Services.AddIdentity<User, IdentityRole>(
+    option =>
+    {
+        option.Password.RequiredUniqueChars = 0;
+        option.Password.RequireUppercase = false;
+        option.Password.RequireLowercase = false;
+        option.Password.RequiredLength = 8;
+        option.Password.RequireNonAlphanumeric = false;
+        option.SignIn.RequireConfirmedAccount = true;
+    })
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+            .AddDefaultTokenProviders();
+builder.Services.Configure<IdentityOptions>(option =>
+{
+    option.SignIn.RequireConfirmedEmail = true;
+});
 
 var app = builder.Build();
 
@@ -30,6 +46,43 @@ app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=userauthentication}/{action=login}/{id?}");
 
-app.Run();
+using (var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+
+    string[] roleNames = { "Admin", "User" };
+    foreach (var roleName in roleNames)
+    {
+        var roleExist = await roleManager.RoleExistsAsync(roleName);
+        if (!roleExist)
+        {
+            await roleManager.CreateAsync(new IdentityRole(roleName));
+        }
+    }
+
+    // Create default admin user
+    var adminEmail = "admin@gmail.com";
+    var adminUser = await userManager.FindByEmailAsync(adminEmail);
+    if (adminUser == null)
+    {
+        User admin = new User
+        {
+            UserName = adminEmail,
+            Email = adminEmail,
+            Name = "Admin",
+            Address = "Viet Nam",
+            EmailConfirmed = true
+        };
+
+        var result = await userManager.CreateAsync(admin, "Admin@12345");
+        if (result.Succeeded)
+        {
+            await userManager.AddToRoleAsync(admin, "Admin");
+        }
+    }
+}
+
+    app.Run();
