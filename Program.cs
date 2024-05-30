@@ -1,11 +1,19 @@
-using DemoIdentityProject.Context;
+using DemoIdentityProject.Configuration;
 using DemoIdentityProject.Models.Entity;
+using DemoIdentityProject.Repository.Context;
+using DemoIdentityProject.Services.Interface;
+using DemoIdentityProject.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.AspNetCore.Mvc.Routing;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = builder.Configuration.GetConnectionString("SqlConnection");
+var configuration = builder.Configuration;
+
+var connectionString = configuration.GetConnectionString("SqlConnection");
+
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<ApplicationDbContext>(
@@ -18,14 +26,21 @@ builder.Services.AddIdentity<User, IdentityRole>(
         option.Password.RequireLowercase = false;
         option.Password.RequiredLength = 8;
         option.Password.RequireNonAlphanumeric = false;
+        option.Password.RequireDigit = false;
         option.SignIn.RequireConfirmedAccount = true;
     })
     .AddEntityFrameworkStores<ApplicationDbContext>()
-            .AddDefaultTokenProviders();
+    .AddDefaultTokenProviders();
 builder.Services.Configure<IdentityOptions>(option =>
 {
     option.SignIn.RequireConfirmedEmail = true;
 });
+
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddSingleton<IActionContextAccessor, ActionContextAccessor>();
+builder.Services.AddSingleton<IUrlHelperFactory, UrlHelperFactory>();
+builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
 
@@ -33,7 +48,6 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
@@ -46,7 +60,7 @@ app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=userauthentication}/{action=login}/{id?}");
+    pattern: "{controller=Account}/{action=login}/{id?}");
 
 using (var scope = app.Services.CreateScope())
 {
@@ -64,20 +78,23 @@ using (var scope = app.Services.CreateScope())
     }
 
     // Create default admin user
-    var adminEmail = "admin@gmail.com";
-    var adminUser = await userManager.FindByEmailAsync(adminEmail);
+    var adminEmail = configuration["AdminUser:Email"];
+    var adminPassword = configuration["AdminUser:Password"];
+    var Name = configuration["AdminUser:Name"];
+    var Address = configuration["AdminUser:Address"];
+    var adminUser = await userManager.FindByEmailAsync(adminEmail!);
     if (adminUser == null)
     {
         User admin = new User
         {
             UserName = adminEmail,
             Email = adminEmail,
-            Name = "Admin",
-            Address = "Viet Nam",
+            Name = Name,
+            Address = Address,
             EmailConfirmed = true
         };
 
-        var result = await userManager.CreateAsync(admin, "Admin@12345");
+        var result = await userManager.CreateAsync(admin, adminPassword!);
         if (result.Succeeded)
         {
             await userManager.AddToRoleAsync(admin, "Admin");
@@ -85,4 +102,4 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-    app.Run();
+app.Run();
