@@ -3,6 +3,7 @@ using DemoIdentityProject.Models.Entity;
 using DemoIdentityProject.Models.ViewModels;
 using DemoIdentityProject.Services.Interface;
 using MailKit.Net.Smtp;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
@@ -60,33 +61,41 @@ namespace DemoIdentityProject.Services
             return false;
         }
 
-        public async Task<bool> LoginWithTemporaryPasswordAsync(Login model)
+        public async Task<string> LoginAsync(Login model)
         {
-            var user = await _userManager.FindByEmailAsync(model.Username);
-            if (user != null && await _userManager.CheckPasswordAsync(user, model.Password))
+            var user = await _userManager.FindByEmailAsync(model.Username!);
+            if (user == null)
             {
-                if (user.IsUsingTemporaryPassword)
-                {
-                    await _signInManager.SignInAsync(user, isPersistent: false);
-                    return true;
-                }
+                _logger.LogWarning("User not found.");
+                return "UserNotFound";
             }
-            return false;
-        }
 
-        public async Task<bool> LoginAsync(Login model)
-        {
-            var user = await _userManager.FindByEmailAsync(model.Username);
-            if (user != null && await _userManager.CheckPasswordAsync(user, model.Password))
+            if (!await _userManager.CheckPasswordAsync(user, model.Password!))
             {
-                var result = await _signInManager.PasswordSignInAsync(model.Username, model.Password, model.RememberMe, lockoutOnFailure: false);
-                if (result.Succeeded)
-                {
-                    _logger.LogInformation("User logged in.");
-                    return true;
-                }
+                _logger.LogWarning("Invalid password.");
+                return "InvalidPassword";
             }
-            return false;
+
+            if (user.IsUsingTemporaryPassword)
+            {
+                _logger.LogInformation("User logged in with temporary password.");
+                if (!user.EmailConfirmed)
+                {
+                    _logger.LogInformation("The user signed in with an unverified email");
+                    return "NotVerify";
+                }
+                await _signInManager.PasswordSignInAsync(model.Username!, model.Password!, !model.RememberMe, lockoutOnFailure: true);
+                return "TemporaryPassword";
+            }
+
+            var result = await _signInManager.PasswordSignInAsync(model.Username!, model.Password!, model.RememberMe, lockoutOnFailure: false);
+            if (result.Succeeded)
+            {
+                _logger.LogInformation("User logged in.");
+                return "Success";
+            }
+
+            return "Failure";
         }
 
         public async Task LogoutAsync()

@@ -99,17 +99,26 @@ namespace DemoIdentityProject.Controllers
         {
             if (ModelState.IsValid)
             {
-                if (await _accountService.LoginWithTemporaryPasswordAsync(model))
+                var loginResult = await _accountService.LoginAsync(model);
+                switch (loginResult)
                 {
-                    return RedirectToAction("ChangeTemporaryPassword");
+                    case "Success":
+                        return RedirectToAction("Index", "Home");
+                    case "TemporaryPassword":
+                        return RedirectToAction("ChangeTemporaryPassword");
+                    case "UserNotFound":
+                        ModelState.AddModelError(string.Empty, "User not found.");
+                        break;
+                    case "InvalidPassword":
+                        ModelState.AddModelError(string.Empty, "Invalid password.");
+                        break;
+                    case "NotVerify":
+                        ModelState.AddModelError(string.Empty, "The account has not been verified.");
+                        break;
+                    default:
+                        ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+                        break;
                 }
-
-                if (await _accountService.LoginAsync(model))
-                {
-                    return RedirectToAction("Index", "Home");
-                }
-
-                ModelState.AddModelError(string.Empty, "Invalid login attempt.");
             }
             return View(model);
         }
