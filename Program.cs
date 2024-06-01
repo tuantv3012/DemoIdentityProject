@@ -12,12 +12,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 var configuration = builder.Configuration;
 
-var connectionString = configuration.GetConnectionString("SqlConnection");
+builder.Services.AddDbContext<ApplicationDbContext>(
+    options => options.UseInMemoryDatabase("InMemoryDb"));
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-builder.Services.AddDbContext<ApplicationDbContext>(
-    option => option.UseSqlServer(connectionString));
 builder.Services.AddIdentity<User, IdentityRole>(
     option =>
     {
